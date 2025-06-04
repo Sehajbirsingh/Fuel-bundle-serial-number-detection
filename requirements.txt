@@ -1,0 +1,21 @@
+# Core PyTorch and Computer Vision
+torch>=1.9.0
+torchvision>=0.10.0
+opencv-python>=4.5.0
+numpy>=1.21.0
+Pillow>=8.3.0
+
+# OCR Libraries (install in order of preference)
+# 1. PaddleOCR - Most Accurate (RECOMMENDED)
+paddlepaddle>=2.4.0
+paddleocr>=2.6.0
+
+# 2. EasyOCR - Good balance of speed and accuracy
+easyocr>=1.6.0
+
+# 3. Tesseract - Traditional OCR (backup option)
+pytesseract>=0.3.8
+
+# Additional utilities
+regex>=2022.0.0
+pathlib2>=2.3.0

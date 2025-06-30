@@ -30,18 +30,18 @@ def generate_serial():
 #     return img
 
 def overlay_serial(img, serial_text, pos=(720, 1790), box_size=(265, 98)):
-    font = cv2.FONT_HERSHEY_COMPLEX
-    font_scale = 1.7
-    thickness = 3 # Increased thickness for a more substantial look
+    font = cv2.FONT_HERSHEY_DUPLEX
+    font_scale = 1.5
+    thickness = 2 # Increased thickness for a more substantial look
     
     # Colors adjusted for a brownish-gray feel (BGR format)
-    main_text_color_bgr = (80, 90, 100)    # Medium-dark grayish-brown
-    highlight_color_bgr = (100, 110, 120)  # Lighter version for highlight
-    shadow_color_bgr = (60, 70, 80)        # Darker version for shadow
+    main_text_color_bgr = (42, 59, 76)    # Medium-dark grayish-brown
+    highlight_color_bgr = (67, 71, 74)   # Lighter version for highlight
+    shadow_color_bgr = (67, 71, 74)         # Darker version for shadow
     
     # Increased offsets for a more pronounced 3D effect
-    highlight_offset = (-2, -2) # dx, dy
-    shadow_offset = (2, 2)    # dx, dy
+    highlight_offset = (0, 0) # dx, dy
+    shadow_offset = (-1, -1)    # dx, dy
 
     char_spacing_reduction = 2
     angle = -6 # As per your last update for alignment
@@ -170,6 +170,17 @@ def generate_images(n=1):
         serial = generate_serial()
         img = base.copy()
         img_with_text = overlay_serial(img, serial)
-        cv2.imwrite(f"{output_dir}/{serial}.jpg", img_with_text)
+        cv2.imwrite(f"{output_dir}/{serial}.jpg", img_with_text, [cv2.IMWRITE_JPEG_QUALITY, 50])
+        #cv2.imwrite(f"zzz.jpg", img_with_text)
 
-generate_images(n=500)
+generate_images(n=100)
+
+
+
+
+"""
+`1234567890-+-  qwertyuiop[]\789asdfghjkl;'
+456Zxcvbnm,./0.
+*/0.
+
+"""

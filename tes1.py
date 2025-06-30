@@ -217,7 +217,7 @@ class FuelBundleSerialDetector:
         
         return result_image
     
-    def detect_fuel_bundle_serial(self, image_path="image2.jpg"):
+    def detect_fuel_bundle_serial(self, image_path="synthetic_dataset//CRZ012N.jpg"):
         """Main detection function"""
         print("🚀 Starting Fuel Bundle Serial Number Detection")
         print("=" * 60)
@@ -302,16 +302,16 @@ def main():
     print()
     
     # Check if image exists
-    if not Path("image2.jpg").exists():
-        print("❌ Error: image2.jpg not found in current directory!")
-        print("Please place your fuel bundle image as 'image2.jpg'")
+    if not Path("synthetic_dataset//CRZ012N.jpg").exists():
+        print("❌ Error: synthetic_dataset//CRZ012N.jpg not found in current directory!")
+        print("Please place your fuel bundle image as 'synthetic_dataset//CRZ012N.jpg'")
         return
     
     # Initialize detector
     detector = FuelBundleSerialDetector()
     
     # Run detection
-    serial_numbers = detector.detect_fuel_bundle_serial("image2.jpg")
+    serial_numbers = detector.detect_fuel_bundle_serial("synthetic_dataset//CRZ012N.jpg")
     
     # Return for programmatic use
     return serial_numbers

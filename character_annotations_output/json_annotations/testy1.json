@@ -1,0 +1,369 @@
+{
+  "image_info": {
+    "filename": "testy1.JPG",
+    "width": 2448,
+    "height": 3264,
+    "channels": 3
+  },
+  "detection_summary": {
+    "total_word_detections": 1,
+    "total_character_detections": 0,
+    "total_character_annotations": 14,
+    "serial_numbers_found": 2,
+    "patterns_detected": [
+      "AAAnnnA"
+    ]
+  },
+  "word_level_detections": [
+    {
+      "bbox": [
+        439,
+        1053,
+        565,
+        1102
+      ],
+      "bbox_poly": [
+        [
+          445.07351789077586,
+          1053.1087751412585
+        ],
+        [
+          565.9643273025898,
+          1069.4669812030131
+        ],
+        [
+          559.9264821092241,
+          1102.8912248587415
+        ],
+        [
+          439.03567269741023,
+          1086.5330187969869
+        ]
+      ],
+      "text": "JFH772B",
+      "confidence": 0.7031550349242103,
+      "type": "word"
+    }
+  ],
+  "character_level_detections": [],
+  "character_annotations": [
+    {
+      "bbox": [
+        439,
+        1053,
+        457,
+        1102
+      ],
+      "text": "J",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 9,
+      "parent_word": "JFH772B",
+      "position_in_word": 0
+    },
+    {
+      "bbox": [
+        457,
+        1053,
+        475,
+        1102
+      ],
+      "text": "F",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 5,
+      "parent_word": "JFH772B",
+      "position_in_word": 1
+    },
+    {
+      "bbox": [
+        475,
+        1053,
+        493,
+        1102
+      ],
+      "text": "H",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 7,
+      "parent_word": "JFH772B",
+      "position_in_word": 2
+    },
+    {
+      "bbox": [
+        493,
+        1053,
+        511,
+        1102
+      ],
+      "text": "7",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 33,
+      "parent_word": "JFH772B",
+      "position_in_word": 3
+    },
+    {
+      "bbox": [
+        511,
+        1053,
+        529,
+        1102
+      ],
+      "text": "7",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 33,
+      "parent_word": "JFH772B",
+      "position_in_word": 4
+    },
+    {
+      "bbox": [
+        529,
+        1053,
+        547,
+        1102
+      ],
+      "text": "2",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 28,
+      "parent_word": "JFH772B",
+      "position_in_word": 5
+    },
+    {
+      "bbox": [
+        547,
+        1053,
+        565,
+        1102
+      ],
+      "text": "B",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 1,
+      "parent_word": "JFH772B",
+      "position_in_word": 6
+    },
+    {
+      "bbox": [
+        439,
+        1053,
+        457,
+        1102
+      ],
+      "text": "J",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 9,
+      "parent_word": "JFH772B",
+      "position_in_word": 0
+    },
+    {
+      "bbox": [
+        457,
+        1053,
+        475,
+        1102
+      ],
+      "text": "F",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 5,
+      "parent_word": "JFH772B",
+      "position_in_word": 1
+    },
+    {
+      "bbox": [
+        475,
+        1053,
+        493,
+        1102
+      ],
+      "text": "H",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 7,
+      "parent_word": "JFH772B",
+      "position_in_word": 2
+    },
+    {
+      "bbox": [
+        493,
+        1053,
+        511,
+        1102
+      ],
+      "text": "7",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 33,
+      "parent_word": "JFH772B",
+      "position_in_word": 3
+    },
+    {
+      "bbox": [
+        511,
+        1053,
+        529,
+        1102
+      ],
+      "text": "7",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 33,
+      "parent_word": "JFH772B",
+      "position_in_word": 4
+    },
+    {
+      "bbox": [
+        529,
+        1053,
+        547,
+        1102
+      ],
+      "text": "2",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 28,
+      "parent_word": "JFH772B",
+      "position_in_word": 5
+    },
+    {
+      "bbox": [
+        547,
+        1053,
+        565,
+        1102
+      ],
+      "text": "B",
+      "confidence": 0.5625240279393683,
+      "type": "character_estimated",
+      "class_id": 1,
+      "parent_word": "JFH772B",
+      "position_in_word": 6
+    }
+  ],
+  "serial_numbers": [
+    {
+      "bbox": [
+        439,
+        1053,
+        565,
+        1102
+      ],
+      "bbox_poly": [
+        [
+          445.07351789077586,
+          1053.1087751412585
+        ],
+        [
+          565.9643273025898,
+          1069.4669812030131
+        ],
+        [
+          559.9264821092241,
+          1102.8912248587415
+        ],
+        [
+          439.03567269741023,
+          1086.5330187969869
+        ]
+      ],
+      "text": "JFH772B",
+      "confidence": 0.7031550349242103,
+      "type": "word",
+      "serial_number": "JFH772B",
+      "pattern": "AAAnnnA",
+      "pattern_index": 2,
+      "original_text": "JFH772B"
+    },
+    {
+      "bbox": [
+        439,
+        1053,
+        565,
+        1102
+      ],
+      "bbox_poly": [
+        [
+          445.07351789077586,
+          1053.1087751412585
+        ],
+        [
+          565.9643273025898,
+          1069.4669812030131
+        ],
+        [
+          559.9264821092241,
+          1102.8912248587415
+        ],
+        [
+          439.03567269741023,
+          1086.5330187969869
+        ]
+      ],
+      "text": "JFH772B",
+      "confidence": 0.7031550349242103,
+      "type": "word",
+      "serial_number": "JFH772B",
+      "pattern": "AAAnnnA",
+      "pattern_index": 2,
+      "original_text": "JFH772B",
+      "ocr_corrected": true
+    }
+  ],
+  "character_classes": {
+    "A": 0,
+    "B": 1,
+    "C": 2,
+    "D": 3,
+    "E": 4,
+    "F": 5,
+    "G": 6,
+    "H": 7,
+    "I": 8,
+    "J": 9,
+    "K": 10,
+    "L": 11,
+    "M": 12,
+    "N": 13,
+    "O": 14,
+    "P": 15,
+    "Q": 16,
+    "R": 17,
+    "S": 18,
+    "T": 19,
+    "U": 20,
+    "V": 21,
+    "W": 22,
+    "X": 23,
+    "Y": 24,
+    "Z": 25,
+    "0": 26,
+    "1": 27,
+    "2": 28,
+    "3": 29,
+    "4": 30,
+    "5": 31,
+    "6": 32,
+    "7": 33,
+    "8": 34,
+    "9": 35
+  },
+  "metadata": {
+    "created_at": "2025-06-30T17:49:14.684467",
+    "detector_version": "2.0_character_level",
+    "patterns_supported": [
+      "AAnnnnA",
+      "AAnnnAn",
+      "AAAnnnA"
+    ],
+    "annotation_types": [
+      "word_level",
+      "character_level",
+      "character_segmented",
+      "character_estimated"
+    ]
+  }
+}

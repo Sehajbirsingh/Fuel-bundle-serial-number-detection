@@ -1,3 +1,9 @@
 /synthetic_dataset
 /venv
 /test_images
+/character_visualization
+/character_annotations_output
+/annotations_output
+/runs
+/yolo_character_dataset
+yolov8n.pt

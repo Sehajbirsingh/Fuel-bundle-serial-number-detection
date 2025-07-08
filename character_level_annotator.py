@@ -676,18 +676,18 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) == 1:
         print("🔧 Running with default settings...")
-        print("📁 Input directory: test_images")
+        print("📁 Input directory: test_images_2")
         print("📁 Output directory: character_annotations_output")
         print()
         
-        # Check if test_images exists
-        if not Path("test_images").exists():
-            print("❌ Error: test_images directory not found!")
+        # Check if test_images_2 exists
+        if not Path("test_images_2").exists():
+            print("❌ Error: test_images_2 directory not found!")
             print("Usage: python character_level_annotator.py <input_directory>")
             sys.exit(1)
         
         # Run with defaults
         annotator = CharacterLevelAnnotator()
-        results, summary = annotator.process_batch("test_images")
+        results, summary = annotator.process_batch("test_images_2")
     else:
         main()

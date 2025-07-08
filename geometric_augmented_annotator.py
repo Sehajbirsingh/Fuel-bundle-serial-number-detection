@@ -10,11 +10,14 @@ import time
 from datetime import datetime
 import argparse
 import math
+from typing import List, Tuple, Dict, Any
 
 class GeometricAugmentedAnnotator:
     """
-    Advanced Serial Number Annotator with Geometric Augmentations
-    Rotates images and adjusts bounding boxes accordingly for robust training data
+    Enhanced Serial Number Annotator with Geometric Augmentation
+    - Rotates images and properly adjusts bounding boxes
+    - Maintains character-level and word-level annotations
+    - Generates augmented training data for complex scenarios
     """
     
     def __init__(self, output_dir="augmented_annotations_output"):
@@ -53,159 +56,132 @@ class GeometricAugmentedAnnotator:
         
         self.pattern_names = ['AAnnnnA', 'AAnnnAn', 'AAAnnnA']
         
-        # Augmentation settings
-        self.rotation_angles = [-15, -10, -5, 0, 5, 10, 15]  # Degrees
-        self.scale_factors = [0.9, 1.0, 1.1]
-        self.brightness_factors = [0.8, 1.0, 1.2]
+        # Character mapping for training
+        self.char_to_id = {
+            'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7,
+            'I': 8, 'J': 9, 'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 
+            'P': 15, 'Q': 16, 'R': 17, 'S': 18, 'T': 19, 'U': 20, 'V': 21,
+            'W': 22, 'X': 23, 'Y': 24, 'Z': 25, '0': 26, '1': 27, '2': 28,
+            '3': 29, '4': 30, '5': 31, '6': 32, '7': 33, '8': 34, '9': 35
+        }
         
-        print("✅ Geometric augmented annotator initialized successfully!")
+        # Augmentation parameters
+        self.rotation_angles = [-15, -10, -5, 0, 5, 10, 15]  # degrees
+        self.brightness_factors = [0.7, 0.85, 1.0, 1.15, 1.3]
+        self.contrast_factors = [0.8, 0.9, 1.0, 1.1, 1.2]
+        
+        # Statistics tracking
+        self.stats = {
+            'total_images': 0,
+            'total_augmented': 0,
+            'images_with_serials': 0,
+            'total_serials_found': 0,
+            'character_count': {char: 0 for char in self.char_to_id.keys()},
+            'processing_times': [],
+            'errors': []
+        }
+        
+        print("✅ Geometric Augmented Annotator initialized successfully!")
         print(f"📁 Output directory: {self.output_dir.absolute()}")
     
-    def rotate_point(self, point, angle, center):
-        """Rotate a point around a center by given angle (in degrees)"""
-        angle_rad = math.radians(angle)
-        cos_angle = math.cos(angle_rad)
-        sin_angle = math.sin(angle_rad)
-        
-        # Translate point to origin
-        translated_x = point[0] - center[0]
-        translated_y = point[1] - center[1]
-        
-        # Rotate
-        rotated_x = translated_x * cos_angle - translated_y * sin_angle
-        rotated_y = translated_x * sin_angle + translated_y * cos_angle
-        
-        # Translate back
-        final_x = rotated_x + center[0]
-        final_y = rotated_y + center[1]
-        
-        return [final_x, final_y]
-    
-    def rotate_bbox(self, bbox, angle, image_center, image_shape):
-        """Rotate bounding box and return new coordinates"""
-        x_min, y_min, x_max, y_max = bbox
-        
-        # Get all four corners of the bounding box
-        corners = [
-            [x_min, y_min],  # Top-left
-            [x_max, y_min],  # Top-right
-            [x_max, y_max],  # Bottom-right
-            [x_min, y_max]   # Bottom-left
-        ]
-        
-        # Rotate all corners
-        rotated_corners = []
-        for corner in corners:
-            rotated_corner = self.rotate_point(corner, angle, image_center)
-            rotated_corners.append(rotated_corner)
-        
-        # Find new bounding box from rotated corners
-        x_coords = [corner[0] for corner in rotated_corners]
-        y_coords = [corner[1] for corner in rotated_corners]
-        
-        new_x_min = max(0, min(x_coords))
-        new_y_min = max(0, min(y_coords))
-        new_x_max = min(image_shape[1], max(x_coords))
-        new_y_max = min(image_shape[0], max(y_coords))
-        
-        return [int(new_x_min), int(new_y_min), int(new_x_max), int(new_y_max)]
-    
-    def rotate_image_and_annotations(self, image, detections, angle):
-        """Rotate image and adjust all bounding boxes accordingly"""
+    def rotate_image(self, image: np.ndarray, angle: float) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Rotate image by given angle and return rotation matrix
+        """
         h, w = image.shape[:2]
         center = (w // 2, h // 2)
         
         # Create rotation matrix
         rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
         
-        # Calculate new image dimensions to fit rotated image
-        cos_angle = abs(rotation_matrix[0, 0])
-        sin_angle = abs(rotation_matrix[0, 1])
-        new_w = int((h * sin_angle) + (w * cos_angle))
-        new_h = int((h * cos_angle) + (w * sin_angle))
+        # Calculate new bounding dimensions
+        cos_val = np.abs(rotation_matrix[0, 0])
+        sin_val = np.abs(rotation_matrix[0, 1])
+        new_w = int((h * sin_val) + (w * cos_val))
+        new_h = int((h * cos_val) + (w * sin_val))
         
-        # Adjust rotation matrix for new image center
+        # Adjust rotation matrix for new center
         rotation_matrix[0, 2] += (new_w / 2) - center[0]
         rotation_matrix[1, 2] += (new_h / 2) - center[1]
         
-        # Rotate image
+        # Apply rotation
         rotated_image = cv2.warpAffine(image, rotation_matrix, (new_w, new_h), 
                                      flags=cv2.INTER_LINEAR, 
                                      borderMode=cv2.BORDER_CONSTANT,
                                      borderValue=(0, 0, 0))
         
-        # Adjust bounding boxes
-        rotated_detections = []
-        new_center = (new_w // 2, new_h // 2)
-        
-        for detection in detections:
-            # Transform bounding box coordinates
-            bbox = detection['bbox']
-            
-            # Convert to points and transform
-            points = np.array([
-                [bbox[0], bbox[1], 1],  # Top-left
-                [bbox[2], bbox[1], 1],  # Top-right  
-                [bbox[2], bbox[3], 1],  # Bottom-right
-                [bbox[0], bbox[3], 1]   # Bottom-left
-            ]).T
-            
-            transformed_points = rotation_matrix @ points
-            
-            # Get new bounding box
-            x_coords = transformed_points[0, :]
-            y_coords = transformed_points[1, :]
-            
-            new_x_min = max(0, int(min(x_coords)))
-            new_y_min = max(0, int(min(y_coords)))
-            new_x_max = min(new_w, int(max(x_coords)))
-            new_y_max = min(new_h, int(max(y_coords)))
-            
-            # Only keep detections that are still visible
-            if new_x_max > new_x_min and new_y_max > new_y_min:
-                rotated_detection = detection.copy()
-                rotated_detection['bbox'] = [new_x_min, new_y_min, new_x_max, new_y_max]
-                rotated_detections.append(rotated_detection)
-        
-        return rotated_image, rotated_detections, (new_w, new_h)
+        return rotated_image, rotation_matrix
     
-    def apply_brightness_augmentation(self, image, factor):
-        """Apply brightness augmentation"""
-        # Convert to float and apply brightness
-        image_float = image.astype(np.float32) * factor
-        # Clip to valid range and convert back
-        return np.clip(image_float, 0, 255).astype(np.uint8)
+    def rotate_bounding_box(self, bbox: List[int], rotation_matrix: np.ndarray) -> List[int]:
+        """
+        Rotate bounding box coordinates using rotation matrix
+        """
+        x1, y1, x2, y2 = bbox
+        
+        # Create corner points
+        corners = np.array([
+            [x1, y1, 1],
+            [x2, y1, 1],
+            [x2, y2, 1],
+            [x1, y2, 1]
+        ]).T
+        
+        # Apply rotation
+        rotated_corners = rotation_matrix @ corners
+        
+        # Get new bounding box
+        x_coords = rotated_corners[0, :]
+        y_coords = rotated_corners[1, :]
+        
+        new_x1 = int(np.min(x_coords))
+        new_y1 = int(np.min(y_coords))
+        new_x2 = int(np.max(x_coords))
+        new_y2 = int(np.max(y_coords))
+        
+        return [new_x1, new_y1, new_x2, new_y2]
     
-    def apply_scale_augmentation(self, image, detections, scale_factor):
-        """Apply scaling augmentation"""
-        h, w = image.shape[:2]
-        new_w, new_h = int(w * scale_factor), int(h * scale_factor)
+    def rotate_polygon(self, polygon: List[List[int]], rotation_matrix: np.ndarray) -> List[List[int]]:
+        """
+        Rotate polygon coordinates using rotation matrix
+        """
+        rotated_polygon = []
         
-        # Resize image
-        scaled_image = cv2.resize(image, (new_w, new_h))
-        
-        # Scale bounding boxes
-        scaled_detections = []
-        for detection in detections:
-            bbox = detection['bbox']
-            scaled_bbox = [
-                int(bbox[0] * scale_factor),
-                int(bbox[1] * scale_factor),
-                int(bbox[2] * scale_factor),
-                int(bbox[3] * scale_factor)
-            ]
+        for point in polygon:
+            # Convert to homogeneous coordinates
+            point_homo = np.array([point[0], point[1], 1])
             
-            scaled_detection = detection.copy()
-            scaled_detection['bbox'] = scaled_bbox
-            scaled_detections.append(scaled_detection)
+            # Apply rotation
+            rotated_point = rotation_matrix @ point_homo
+            
+            rotated_polygon.append([int(rotated_point[0]), int(rotated_point[1])])
         
-        return scaled_image, scaled_detections, (new_w, new_h)
+        return rotated_polygon
     
-    def detect_text(self, image):
-        """Detect all text regions using EasyOCR"""
+    def adjust_brightness_contrast(self, image: np.ndarray, brightness: float, contrast: float) -> np.ndarray:
+        """
+        Adjust image brightness and contrast
+        """
+        # Convert to float for calculations
+        image_float = image.astype(np.float32)
+        
+        # Apply brightness and contrast
+        adjusted = image_float * contrast + brightness * 255
+        
+        # Clip values and convert back to uint8
+        adjusted = np.clip(adjusted, 0, 255).astype(np.uint8)
+        
+        return adjusted
+    
+    def detect_text_and_characters(self, image: np.ndarray) -> Tuple[List[Dict], List[Dict]]:
+        """
+        Detect text and segment into characters
+        """
+        # Detect text regions
         results = self.reader.readtext(image, detail=1, paragraph=False)
         
-        detections = []
+        all_detections = []
+        character_detections = []
+        
         for bbox, text, confidence in results:
             if confidence > 0.1:
                 bbox_np = np.array(bbox, dtype=np.int32)
@@ -218,17 +194,39 @@ class GeometricAugmentedAnnotator:
                 else:
                     bbox_poly = bbox
                 
-                detections.append({
+                word_detection = {
                     'bbox': [int(x_min), int(y_min), int(x_max), int(y_max)],
                     'bbox_poly': bbox_poly,
                     'text': text.strip(),
                     'confidence': float(confidence)
-                })
+                }
+                
+                all_detections.append(word_detection)
+                
+                # Character-level segmentation
+                clean_text = re.sub(r'[^A-Z0-9]', '', text.upper())
+                if len(clean_text) > 0:
+                    char_width = (x_max - x_min) / len(clean_text)
+                    
+                    for i, char in enumerate(clean_text):
+                        if char in self.char_to_id:
+                            char_x1 = int(x_min + i * char_width)
+                            char_x2 = int(x_min + (i + 1) * char_width)
+                            
+                            character_detections.append({
+                                'bbox': [char_x1, y_min, char_x2, y_max],
+                                'character': char,
+                                'class_id': self.char_to_id[char],
+                                'confidence': float(confidence),
+                                'parent_word': text.strip()
+                            })
         
-        return detections
+        return all_detections, character_detections
     
-    def filter_serial_numbers(self, detections):
-        """Filter detections to find fuel bundle serial numbers"""
+    def filter_serial_numbers(self, detections: List[Dict]) -> List[Dict]:
+        """
+        Filter detections to find valid serial numbers
+        """
         serial_numbers = []
         
         for detection in detections:
@@ -263,342 +261,423 @@ class GeometricAugmentedAnnotator:
         
         return serial_numbers
     
-    def segment_characters(self, image, serial_detection):
-        """Segment individual characters from serial number region"""
-        bbox = serial_detection['bbox']
-        x_min, y_min, x_max, y_max = bbox
+    def create_augmented_version(self, image: np.ndarray, all_detections: List[Dict], 
+                               character_detections: List[Dict], serial_numbers: List[Dict],
+                               angle: float, brightness: float, contrast: float) -> Dict:
+        """
+        Create augmented version with rotated image and adjusted annotations
+        """
+        # Apply rotation
+        rotated_image, rotation_matrix = self.rotate_image(image, angle)
         
-        # Crop serial number region
-        serial_crop = image[y_min:y_max, x_min:x_max]
+        # Apply brightness/contrast adjustment
+        final_image = self.adjust_brightness_contrast(rotated_image, brightness, contrast)
         
-        if serial_crop.size == 0:
-            return []
+        # Rotate all bounding boxes
+        rotated_all_detections = []
+        for detection in all_detections:
+            rotated_detection = detection.copy()
+            rotated_detection['bbox'] = self.rotate_bounding_box(detection['bbox'], rotation_matrix)
+            rotated_detection['bbox_poly'] = self.rotate_polygon(detection['bbox_poly'], rotation_matrix)
+            rotated_all_detections.append(rotated_detection)
         
-        # Convert to grayscale for better character segmentation
-        gray = cv2.cvtColor(serial_crop, cv2.COLOR_RGB2GRAY)
+        # Rotate character bounding boxes
+        rotated_character_detections = []
+        for char_detection in character_detections:
+            rotated_char = char_detection.copy()
+            rotated_char['bbox'] = self.rotate_bounding_box(char_detection['bbox'], rotation_matrix)
+            rotated_character_detections.append(rotated_char)
         
-        # Apply threshold
-        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        # Rotate serial number bounding boxes
+        rotated_serial_numbers = []
+        for serial in serial_numbers:
+            rotated_serial = serial.copy()
+            rotated_serial['bbox'] = self.rotate_bounding_box(serial['bbox'], rotation_matrix)
+            rotated_serial['bbox_poly'] = self.rotate_polygon(serial['bbox_poly'], rotation_matrix)
+            rotated_serial_numbers.append(rotated_serial)
         
-        # Find contours
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        # Filter and sort contours by x-coordinate
-        char_contours = []
-        for contour in contours:
-            x, y, w, h = cv2.boundingRect(contour)
-            # Filter small noise
-            if w > 5 and h > 10:
-                char_contours.append((x, y, w, h, contour))
-        
-        # Sort by x-coordinate (left to right)
-        char_contours.sort(key=lambda x: x[0])
-        
-        # Create character annotations
-        character_annotations = []
-        serial_number = serial_detection.get('serial_number', '')
-        
-        for i, (rel_x, rel_y, w, h, contour) in enumerate(char_contours):
-            # Convert relative coordinates to absolute
-            abs_x_min = x_min + rel_x
-            abs_y_min = y_min + rel_y
-            abs_x_max = abs_x_min + w
-            abs_y_max = abs_y_min + h
-            
-            # Get character if we know the serial number
-            character = serial_number[i] if i < len(serial_number) else '?'
-            
-            character_annotations.append({
-                'bbox': [abs_x_min, abs_y_min, abs_x_max, abs_y_max],
-                'character': character,
-                'position_in_serial': i,
-                'contour': contour.tolist()
-            })
-        
-        return character_annotations
+        return {
+            'image': final_image,
+            'all_detections': rotated_all_detections,
+            'character_detections': rotated_character_detections,
+            'serial_numbers': rotated_serial_numbers,
+            'augmentation_params': {
+                'rotation_angle': angle,
+                'brightness_factor': brightness,
+                'contrast_factor': contrast
+            }
+        }
     
-    def process_image_with_augmentations(self, image_path):
-        """Process image with multiple augmentations"""
-        print(f"📸 Processing with augmentations: {image_path.name}")
+    def save_augmented_annotations(self, image_path: Path, original_size: Tuple[int, int], 
+                                 augmented_data: Dict, aug_suffix: str) -> Dict:
+        """
+        Save all annotation formats for augmented data
+        """
+        base_name = f"{image_path.stem}_{aug_suffix}"
         
-        # Load original image
-        original_image = cv2.imread(str(image_path))
-        if original_image is None:
-            raise ValueError(f"Could not load image: {image_path}")
+        # Save augmented image
+        image_save_path = self.augmented_images_dir / f"{base_name}.jpg"
+        cv2.imwrite(str(image_save_path), cv2.cvtColor(augmented_data['image'], cv2.COLOR_RGB2BGR))
         
-        # Convert to RGB
-        image_rgb = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
-        
-        # Detect text in original image
-        all_detections = self.detect_text(image_rgb)
-        serial_numbers = self.filter_serial_numbers(all_detections)
-        
-        if not serial_numbers:
-            print(f"   ⚠️  No serial numbers found in {image_path.name}")
-            return []
-        
-        augmentation_results = []
-        aug_id = 0
-        
-        # Apply different augmentations
-        for rotation_angle in self.rotation_angles:
-            for scale_factor in self.scale_factors:
-                for brightness_factor in self.brightness_factors:
-                    aug_id += 1
-                    
-                    # Start with original image
-                    current_image = image_rgb.copy()
-                    current_detections = serial_numbers.copy()
-                    current_size = (image_rgb.shape[1], image_rgb.shape[0])  # (width, height)
-                    
-                    # Apply brightness augmentation
-                    if brightness_factor != 1.0:
-                        current_image = self.apply_brightness_augmentation(current_image, brightness_factor)
-                    
-                    # Apply scaling augmentation
-                    if scale_factor != 1.0:
-                        current_image, current_detections, current_size = self.apply_scale_augmentation(
-                            current_image, current_detections, scale_factor)
-                    
-                    # Apply rotation augmentation
-                    if rotation_angle != 0:
-                        current_image, current_detections, current_size = self.rotate_image_and_annotations(
-                            current_image, current_detections, rotation_angle)
-                    
-                    # Skip if no detections remain after augmentation
-                    if not current_detections:
-                        continue
-                    
-                    # Generate character-level annotations
-                    all_character_annotations = []
-                    for serial_detection in current_detections:
-                        char_annotations = self.segment_characters(current_image, serial_detection)
-                        all_character_annotations.extend(char_annotations)
-                    
-                    # Create augmented filename
-                    aug_suffix = f"_rot{rotation_angle}_scale{scale_factor:.1f}_bright{brightness_factor:.1f}"
-                    aug_filename = f"{image_path.stem}{aug_suffix}.jpg"
-                    
-                    # Save augmented image
-                    aug_image_path = self.augmented_images_dir / aug_filename
-                    cv2.imwrite(str(aug_image_path), cv2.cvtColor(current_image, cv2.COLOR_RGB2BGR))
-                    
-                    # Create annotation data
-                    annotation_data = {
-                        'image_info': {
-                            'filename': aug_filename,
-                            'original_filename': image_path.name,
-                            'width': current_size[0],
-                            'height': current_size[1],
-                            'channels': 3
-                        },
-                        'augmentation_info': {
-                            'rotation_angle': rotation_angle,
-                            'scale_factor': scale_factor,
-                            'brightness_factor': brightness_factor,
-                            'augmentation_id': aug_id
-                        },
-                        'detection_summary': {
-                            'total_text_detections': len(all_detections),
-                            'serial_numbers_found': len(current_detections),
-                            'characters_found': len(all_character_annotations)
-                        },
-                        'serial_numbers': current_detections,
-                        'character_annotations': all_character_annotations,
-                        'metadata': {
-                            'created_at': datetime.now().isoformat(),
-                            'detector_version': '2.0_augmented',
-                            'patterns_supported': self.pattern_names
-                        }
-                    }
-                    
-                    # Save JSON annotation
-                    json_path = self.json_dir / f"{image_path.stem}{aug_suffix}.json"
-                    with open(json_path, 'w') as f:
-                        json.dump(annotation_data, f, indent=2)
-                    
-                    # Save YOLO annotations (both word and character level)
-                    self.save_yolo_annotations(current_size, current_detections, all_character_annotations, 
-                                             image_path.stem + aug_suffix)
-                    
-                    # Save visual annotation
-                    self.save_visual_annotation(current_image, current_detections, all_character_annotations,
-                                              image_path.stem + aug_suffix)
-                    
-                    augmentation_results.append({
-                        'augmentation_id': aug_id,
-                        'filename': aug_filename,
-                        'rotation': rotation_angle,
-                        'scale': scale_factor,
-                        'brightness': brightness_factor,
-                        'serials_found': len(current_detections),
-                        'characters_found': len(all_character_annotations)
-                    })
-                    
-                    print(f"   ✅ Aug {aug_id}: rot={rotation_angle}°, scale={scale_factor}, bright={brightness_factor} "
-                          f"→ {len(current_detections)} serials, {len(all_character_annotations)} chars")
-        
-        return augmentation_results
-    
-    def save_yolo_annotations(self, image_size, serial_detections, character_annotations, base_filename):
-        """Save YOLO format annotations for both words and characters"""
-        
-        # Word-level YOLO (class 0 = serial number)
-        word_yolo_path = self.yolo_dir / f"{base_filename}_words.txt"
-        with open(word_yolo_path, 'w') as f:
-            for detection in serial_detections:
-                x_min, y_min, x_max, y_max = detection['bbox']
-                center_x = (x_min + x_max) / 2 / image_size[0]
-                center_y = (y_min + y_max) / 2 / image_size[1]
-                width = (x_max - x_min) / image_size[0]
-                height = (y_max - y_min) / image_size[1]
-                f.write(f"0 {center_x:.6f} {center_y:.6f} {width:.6f} {height:.6f}\n")
-        
-        # Character-level YOLO (class based on character type)
-        char_yolo_path = self.yolo_dir / f"{base_filename}_characters.txt"
-        char_to_id = {
-            'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'H': 8,
-            'I': 9, 'J': 10, 'K': 11, 'L': 12, 'M': 13, 'N': 14, 'O': 15, 
-            'P': 16, 'Q': 17, 'R': 18, 'S': 19, 'T': 20, 'U': 21, 'V': 22,
-            'W': 23, 'X': 24, 'Y': 25, 'Z': 26, '0': 27, '1': 28, '2': 29,
-            '3': 30, '4': 31, '5': 32, '6': 33, '7': 34, '8': 35, '9': 36
+        # Save JSON annotation
+        annotation = {
+            'image_info': {
+                'filename': f"{base_name}.jpg",
+                'original_filename': image_path.name,
+                'width': augmented_data['image'].shape[1],
+                'height': augmented_data['image'].shape[0],
+                'channels': 3
+            },
+            'augmentation_info': augmented_data['augmentation_params'],
+            'detection_summary': {
+                'total_text_detections': len(augmented_data['all_detections']),
+                'character_detections': len(augmented_data['character_detections']),
+                'serial_numbers_found': len(augmented_data['serial_numbers']),
+                'patterns_detected': list(set([sn['pattern'] for sn in augmented_data['serial_numbers']]))
+            },
+            'all_text_detections': augmented_data['all_detections'],
+            'character_annotations': augmented_data['character_detections'],
+            'serial_numbers': augmented_data['serial_numbers'],
+            'metadata': {
+                'created_at': datetime.now().isoformat(),
+                'detector_version': '2.0_augmented',
+                'patterns_supported': self.pattern_names
+            }
         }
         
-        with open(char_yolo_path, 'w') as f:
-            for char_annotation in character_annotations:
-                char = char_annotation['character']
-                if char in char_to_id:
-                    x_min, y_min, x_max, y_max = char_annotation['bbox']
-                    center_x = (x_min + x_max) / 2 / image_size[0]
-                    center_y = (y_min + y_max) / 2 / image_size[1]
-                    width = (x_max - x_min) / image_size[0]
-                    height = (y_max - y_min) / image_size[1]
-                    class_id = char_to_id[char]
-                    f.write(f"{class_id} {center_x:.6f} {center_y:.6f} {width:.6f} {height:.6f}\n")
-    
-    def save_visual_annotation(self, image, serial_detections, character_annotations, base_filename):
-        """Save visual annotation with both word and character bounding boxes"""
-        result_image = image.copy()
+        json_path = self.json_dir / f"{base_name}.json"
+        with open(json_path, 'w') as f:
+            json.dump(annotation, f, indent=2)
         
-        # Draw serial number bounding boxes in red
-        for detection in serial_detections:
-            x_min, y_min, x_max, y_max = detection['bbox']
-            cv2.rectangle(result_image, (x_min, y_min), (x_max, y_max), (255, 0, 0), 3)
-            
-            # Add serial number label
-            label = f"SERIAL: {detection.get('serial_number', 'Unknown')}"
-            cv2.putText(result_image, label, (x_min, y_min - 10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+        # Save YOLO format for characters
+        yolo_char_path = self.yolo_dir / f"{base_name}_characters.txt"
+        with open(yolo_char_path, 'w') as f:
+            for char_data in augmented_data['character_detections']:
+                x1, y1, x2, y2 = char_data['bbox']
+                
+                # Normalize coordinates
+                center_x = (x1 + x2) / 2 / augmented_data['image'].shape[1]
+                center_y = (y1 + y2) / 2 / augmented_data['image'].shape[0]
+                width = (x2 - x1) / augmented_data['image'].shape[1]
+                height = (y2 - y1) / augmented_data['image'].shape[0]
+                
+                class_id = char_data['class_id']
+                f.write(f"{class_id} {center_x:.6f} {center_y:.6f} {width:.6f} {height:.6f}\n")
         
-        # Draw character bounding boxes in green
-        for char_annotation in character_annotations:
-            x_min, y_min, x_max, y_max = char_annotation['bbox']
-            cv2.rectangle(result_image, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
-            
-            # Add character label
-            char = char_annotation['character']
-            cv2.putText(result_image, char, (x_min, y_min - 5),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        # Save YOLO format for words
+        yolo_word_path = self.yolo_dir / f"{base_name}_words.txt"
+        with open(yolo_word_path, 'w') as f:
+            for serial in augmented_data['serial_numbers']:
+                x1, y1, x2, y2 = serial['bbox']
+                
+                # Normalize coordinates
+                center_x = (x1 + x2) / 2 / augmented_data['image'].shape[1]
+                center_y = (y1 + y2) / 2 / augmented_data['image'].shape[0]
+                width = (x2 - x1) / augmented_data['image'].shape[1]
+                height = (y2 - y1) / augmented_data['image'].shape[0]
+                
+                # Class ID 0 for serial numbers
+                f.write(f"0 {center_x:.6f} {center_y:.6f} {width:.6f} {height:.6f}\n")
         
         # Save visual annotation
-        visual_path = self.visual_dir / f"{base_filename}_annotated.jpg"
-        cv2.imwrite(str(visual_path), cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR))
+        visual_path = self.save_visual_annotation(base_name, augmented_data)
+        
+        return {
+            'image_path': str(image_save_path),
+            'json_path': str(json_path),
+            'yolo_char_path': str(yolo_char_path),
+            'yolo_word_path': str(yolo_word_path),
+            'visual_path': str(visual_path)
+        }
     
-    def process_batch_with_augmentations(self, input_dir):
-        """Process batch of images with augmentations"""
-        print("🚀 Starting Batch Processing with Geometric Augmentations")
+    def save_visual_annotation(self, base_name: str, augmented_data: Dict) -> Path:
+        """
+        Save visual annotation with bounding boxes
+        """
+        result_image = augmented_data['image'].copy()
+        
+        # Draw character bounding boxes in green
+        for char_data in augmented_data['character_detections']:
+            x1, y1, x2, y2 = char_data['bbox']
+            cv2.rectangle(result_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            
+            # Add character label
+            label = f"{char_data['character']}"
+            cv2.putText(result_image, label, (x1, y1 - 5),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        
+        # Draw serial number bounding boxes in red
+        for serial in augmented_data['serial_numbers']:
+            x1, y1, x2, y2 = serial['bbox']
+            cv2.rectangle(result_image, (x1, y1), (x2, y2), (255, 0, 0), 3)
+            
+            # Add serial number label
+            label = f"SERIAL: {serial['serial_number']}"
+            label_pos = (x1, max(y1 - 40, 30))
+            
+            # Background for text
+            (text_width, text_height), baseline = cv2.getTextSize(
+                label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+            cv2.rectangle(result_image,
+                         (label_pos[0] - 5, label_pos[1] - text_height - 5),
+                         (label_pos[0] + text_width + 5, label_pos[1] + baseline + 5),
+                         (255, 0, 0), -1)
+            
+            cv2.putText(result_image, label, label_pos,
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        
+        # Add augmentation info
+        aug_info = f"Rot: {augmented_data['augmentation_params']['rotation_angle']}°"
+        cv2.putText(result_image, aug_info, (10, 30),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        
+        # Save image
+        visual_path = self.visual_dir / f"{base_name}_annotated.jpg"
+        cv2.imwrite(str(visual_path), cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR))
+        
+        return visual_path
+    
+    def process_image_with_augmentation(self, image_path: Path) -> List[Dict]:
+        """
+        Process a single image with multiple augmentations
+        """
+        print(f"📸 Processing with augmentation: {image_path.name}")
+        
+        start_time = time.time()
+        results = []
+        
+        try:
+            # Load and preprocess original image
+            image = cv2.imread(str(image_path))
+            if image is None:
+                raise ValueError(f"Could not load image: {image_path}")
+            
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            original_size = (image_rgb.shape[1], image_rgb.shape[0])
+            
+            # Detect text and characters in original image
+            all_detections, character_detections = self.detect_text_and_characters(image_rgb)
+            serial_numbers = self.filter_serial_numbers(all_detections)
+            
+            if not serial_numbers:
+                print(f"   ⚠️  No serial numbers found in {image_path.name}")
+                return results
+            
+            # Generate augmented versions
+            aug_count = 0
+            for angle in self.rotation_angles:
+                for brightness in self.brightness_factors:
+                    for contrast in self.contrast_factors:
+                        # Skip original (no augmentation)
+                        if angle == 0 and brightness == 1.0 and contrast == 1.0:
+                            continue
+                        
+                        aug_suffix = f"rot{angle:+03d}_br{brightness:.2f}_co{contrast:.2f}"
+                        
+                        # Create augmented version
+                        augmented_data = self.create_augmented_version(
+                            image_rgb, all_detections, character_detections, 
+                            serial_numbers, angle, brightness, contrast
+                        )
+                        
+                        # Save annotations
+                        output_paths = self.save_augmented_annotations(
+                            image_path, original_size, augmented_data, aug_suffix
+                        )
+                        
+                        # Update statistics
+                        for char_data in augmented_data['character_detections']:
+                            self.stats['character_count'][char_data['character']] += 1
+                        
+                        result = {
+                            'original_image': str(image_path),
+                            'augmented_image': output_paths['image_path'],
+                            'augmentation_params': augmented_data['augmentation_params'],
+                            'serial_numbers': [sn['serial_number'] for sn in augmented_data['serial_numbers']],
+                            'character_count': len(augmented_data['character_detections']),
+                            'output_files': output_paths
+                        }
+                        
+                        results.append(result)
+                        aug_count += 1
+            
+            processing_time = time.time() - start_time
+            self.stats['total_images'] += 1
+            self.stats['total_augmented'] += aug_count
+            self.stats['images_with_serials'] += 1
+            self.stats['total_serials_found'] += len(serial_numbers)
+            self.stats['processing_times'].append(processing_time)
+            
+            print(f"   ✅ Created {aug_count} augmented versions")
+            
+        except Exception as e:
+            error_msg = f"Error processing {image_path.name}: {str(e)}"
+            print(f"   ❌ {error_msg}")
+            self.stats['errors'].append(error_msg)
+        
+        return results
+    
+    def generate_character_frequency_report(self) -> Path:
+        """
+        Generate character frequency report for training
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_path = self.reports_dir / f"character_frequency_{timestamp}.csv"
+        
+        with open(csv_path, 'w') as f:
+            f.write("Character,Count,Class_ID\n")
+            for char, class_id in self.char_to_id.items():
+                count = self.stats['character_count'][char]
+                f.write(f"{char},{count},{class_id}\n")
+        
+        return csv_path
+    
+    def process_batch_with_augmentation(self, input_dir: str, file_pattern: str = "*") -> Dict:
+        """
+        Process batch of images with augmentation
+        """
+        print("🚀 Starting Batch Processing with Geometric Augmentation")
         print("=" * 70)
         
         # Get image files
         input_path = Path(input_dir)
-        image_files = []
-        for ext in ['.jpg', '.jpeg', '.png', '.bmp']:
-            image_files.extend(input_path.glob(f"*{ext}"))
-            image_files.extend(input_path.glob(f"*{ext.upper()}"))
+        if not input_path.exists():
+            raise ValueError(f"Input directory does not exist: {input_dir}")
+        
+        if file_pattern == "*":
+            extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
+            image_files = []
+            for ext in extensions:
+                image_files.extend(input_path.glob(f"*{ext}"))
+                image_files.extend(input_path.glob(f"*{ext.upper()}"))
+        else:
+            image_files = list(input_path.glob(file_pattern))
+        
+        image_files = sorted(image_files)
         
         if not image_files:
             print(f"❌ No image files found in {input_dir}")
-            return
+            return {}
         
         print(f"📁 Found {len(image_files)} images to process")
-        print(f"🔄 Will generate {len(self.rotation_angles) * len(self.scale_factors) * len(self.brightness_factors)} augmentations per image")
+        print(f"📁 Will generate {len(self.rotation_angles) * len(self.brightness_factors) * len(self.contrast_factors) - 1} augmented versions per image")
+        print(f"📁 Total expected outputs: {len(image_files) * (len(self.rotation_angles) * len(self.brightness_factors) * len(self.contrast_factors) - 1)}")
         print()
         
+        # Process images
         all_results = []
-        total_augmentations = 0
+        start_time = time.time()
         
         for i, image_path in enumerate(image_files, 1):
             print(f"[{i}/{len(image_files)}] ", end="")
-            try:
-                results = self.process_image_with_augmentations(image_path)
-                all_results.extend(results)
-                total_augmentations += len(results)
-            except Exception as e:
-                print(f"   ❌ Error processing {image_path.name}: {e}")
+            results = self.process_image_with_augmentation(image_path)
+            all_results.extend(results)
         
-        # Generate summary report
-        self.generate_augmentation_report(all_results, total_augmentations)
+        total_time = time.time() - start_time
         
+        # Generate reports
+        print("\n📊 Generating reports...")
+        char_freq_path = self.generate_character_frequency_report()
+        
+        # Generate summary
+        summary = {
+            'processing_summary': {
+                'timestamp': datetime.now().isoformat(),
+                'total_original_images': self.stats['total_images'],
+                'total_augmented_images': self.stats['total_augmented'],
+                'images_with_serials': self.stats['images_with_serials'],
+                'total_serials_found': self.stats['total_serials_found'],
+                'total_characters_annotated': sum(self.stats['character_count'].values())
+            },
+            'character_distribution': self.stats['character_count'],
+            'augmentation_settings': {
+                'rotation_angles': self.rotation_angles,
+                'brightness_factors': self.brightness_factors,
+                'contrast_factors': self.contrast_factors
+            },
+            'performance': {
+                'total_processing_time': total_time,
+                'average_per_image': total_time / len(image_files) if image_files else 0,
+                'images_per_second': len(image_files) / total_time if total_time > 0 else 0
+            },
+            'output_paths': {
+                'augmented_images': str(self.augmented_images_dir),
+                'json_annotations': str(self.json_dir),
+                'yolo_annotations': str(self.yolo_dir),
+                'visual_annotations': str(self.visual_dir),
+                'character_frequency_report': str(char_freq_path)
+            }
+        }
+        
+        # Save summary
+        summary_path = self.reports_dir / f"augmentation_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(summary_path, 'w') as f:
+            json.dump(summary, f, indent=2)
+        
+        # Print results
         print("\n" + "=" * 70)
         print("🎯 AUGMENTED BATCH PROCESSING COMPLETE")
         print("=" * 70)
-        print(f"📊 Total Original Images: {len(image_files)}")
-        print(f"📊 Total Augmented Images: {total_augmentations}")
-        print(f"📊 Augmentation Factor: {total_augmentations / len(image_files) if image_files else 0:.1f}x")
-        print(f"📁 Output Directory: {self.output_dir}")
+        print(f"📊 Original Images: {summary['processing_summary']['total_original_images']}")
+        print(f"🔄 Augmented Images: {summary['processing_summary']['total_augmented']}")
+        print(f"📝 Total Characters Annotated: {summary['processing_summary']['total_characters_annotated']}")
+        print(f"🎯 Serial Numbers Found: {summary['processing_summary']['total_serials_found']}")
+        print()
+        print("📋 Character Distribution:")
+        for char, count in sorted(self.stats['character_count'].items()):
+            if count > 0:
+                print(f"   {char}: {count}")
+        print()
+        print(f"⏱️  Total Processing Time: {total_time:.2f} seconds")
+        print(f"⏱️  Average per Image: {summary['performance']['average_per_image']:.2f} seconds")
+        print()
+        print("📁 Output Files:")
+        print(f"   🖼️  Augmented Images: {self.augmented_images_dir}")
+        print(f"   📝 JSON Annotations: {self.json_dir}")
+        print(f"   📝 YOLO Annotations: {self.yolo_dir}")
+        print(f"   🎨 Visual Annotations: {self.visual_dir}")
+        print(f"   📊 Character Frequency: {char_freq_path}")
+        print(f"   📋 Summary Report: {summary_path}")
         print("=" * 70)
-    
-    def generate_augmentation_report(self, results, total_augmentations):
-        """Generate detailed augmentation report"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # CSV report
-        csv_path = self.reports_dir / f"augmentation_report_{timestamp}.csv"
-        with open(csv_path, 'w') as f:
-            f.write("Aug_ID,Filename,Rotation,Scale,Brightness,Serials_Found,Characters_Found\n")
-            for result in results:
-                f.write(f"{result['augmentation_id']},{result['filename']},{result['rotation']},"
-                       f"{result['scale']},{result['brightness']},{result['serials_found']},{result['characters_found']}\n")
-        
-        # JSON summary
-        summary = {
-            'timestamp': datetime.now().isoformat(),
-            'total_augmentations': total_augmentations,
-            'augmentation_settings': {
-                'rotation_angles': self.rotation_angles,
-                'scale_factors': self.scale_factors,
-                'brightness_factors': self.brightness_factors
-            },
-            'results': results
-        }
-        
-        json_path = self.reports_dir / f"augmentation_summary_{timestamp}.json"
-        with open(json_path, 'w') as f:
-            json.dump(summary, f, indent=2)
+        return summary
 
 def main():
-    """Main function"""
-    import sys
+    """Main function with command line interface"""
+    parser = argparse.ArgumentParser(description='Geometric Augmented Serial Number Annotator')
+    parser.add_argument('input_dir', help='Directory containing images to process')
+    parser.add_argument('--output_dir', default='augmented_annotations_output', 
+                       help='Output directory for annotations')
+    parser.add_argument('--pattern', default='*', 
+                       help='File pattern to match (e.g., "*.jpg", "fuel_*.png")')
     
-    if len(sys.argv) > 1:
-        input_dir = sys.argv[1]
-    else:
-        input_dir = "test_images"
-    
-    print("🔧 Geometric Augmented Serial Number Annotator")
-    print("📋 Features:")
-    print("   - Rotation with bbox adjustment")
-    print("   - Scale augmentation") 
-    print("   - Brightness variation")
-    print("   - Character-level segmentation")
-    print("   - Word + Character YOLO annotations")
-    print()
+    args = parser.parse_args()
     
     # Initialize annotator
-    annotator = GeometricAugmentedAnnotator()
+    annotator = GeometricAugmentedAnnotator(output_dir=args.output_dir)
     
-    # Process with augmentations
-    annotator.process_batch_with_augmentations(input_dir)
+    # Process batch
+    summary = annotator.process_batch_with_augmentation(args.input_dir, args.pattern)
+    
+    return summary
 
 if __name__ == "__main__":
-    main()
+    # If no command line args, use default settings
+    import sys
+    if len(sys.argv) == 1:
+        print("🔧 Running with default settings...")
+        print("📁 Input directory: test_images")
+        print("📁 Output directory: augmented_annotations_output")
+        print()
+        
+        # Check if test_images exists
+        if not Path("test_images").exists():
+            print("❌ Error: test_images directory not found!")
+            print("Usage: python geometric_augmented_annotator.py <input_directory>")
+            sys.exit(1)
+        
+        # Run with defaults
+        annotator = GeometricAugmentedAnnotator()
+        summary = annotator.process_batch_with_augmentation("test_images")
+    else:
+        main()

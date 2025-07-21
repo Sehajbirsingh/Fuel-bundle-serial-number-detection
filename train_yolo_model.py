@@ -35,27 +35,27 @@ def train_character_detection_model():
     print("\n🎯 Starting training...")
     results = model.train(
         data=str(dataset_path),
-        epochs=50,              # Number of training epochs
-        imgsz=640,              # Image size
-        batch=16,               # Batch size (adjust based on GPU memory)
-        name='fuel_character_detection',  # Experiment name
-        patience=15,            # Early stopping patience
-        save_period=10,         # Save checkpoint every 10 epochs
-        device=device,          # Use GPU if available
-        workers=4,              # Number of data loading workers
-        project='runs/detect',  # Project directory
-        exist_ok=True,          # Allow overwriting existing project
-        pretrained=True,        # Use pretrained weights
-        optimizer='AdamW',      # Optimizer
-        lr0=0.01,              # Initial learning rate
-        momentum=0.937,         # Momentum
-        weight_decay=0.0005,    # Weight decay
-        cls=0.5,               # Classification loss weight
-        box=7.5,               # Box loss weight
-        dfl=1.5,               # DFL loss weight
-        plots=True,            # Save training plots
-        save=True,             # Save checkpoints
-        verbose=True           # Verbose output
+        epochs=50,              
+        imgsz=640,             
+        batch=16,               
+        name='fuel_character_detection',  
+        patience=15,           
+        save_period=10,        
+        device=device,         
+        workers=4,             
+        project='runs/detect', 
+        exist_ok=True,         
+        pretrained=True,       
+        optimizer='AdamW',     
+        lr0=0.01,              
+        momentum=0.937,        
+        weight_decay=0.0005,   
+        cls=0.5,               
+        box=7.5,               
+        dfl=1.5,               
+        plots=True,            
+        save=True,             
+        verbose=True           
     )
     
     print("\n✅ Training Complete!")

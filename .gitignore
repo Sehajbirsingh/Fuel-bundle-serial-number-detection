@@ -7,3 +7,9 @@
 /runs
 /yolo_character_dataset
 yolov8n.pt
+annotations_output
+annotations 
+character_annotations_output
+test_images_2
+test1 
+yolo_training_output
